@@ -17,7 +17,7 @@
     }
 
     .wrap{
-      max-width:900px;
+      max-width:950px;
       margin:auto;
       padding:55px 22px
     }
@@ -64,7 +64,8 @@
       border-radius:14px;
       padding:28px;
       text-align:center;
-      cursor:pointer
+      cursor:pointer;
+      color:#c8d1eb
     }
 
     .upload:hover{
@@ -78,7 +79,8 @@
     #fileList{
       margin-top:15px;
       color:#b9c3df;
-      font-size:14px
+      font-size:14px;
+      line-height:1.8
     }
 
     button{
@@ -94,6 +96,10 @@
       margin-top:20px
     }
 
+    button:hover{
+      background:#7b89ff
+    }
+
     button:disabled{
       opacity:.5;
       cursor:not-allowed
@@ -105,18 +111,73 @@
       text-align:center
     }
 
-    #report{
-      display:none;
-      white-space:pre-wrap;
-      line-height:1.65;
-      background:#0d1426;
-      border-radius:12px;
-      padding:20px;
-      overflow:auto
-    }
-
     .error{
       color:#ff8f8f
+    }
+
+    #resultCard{
+      display:none
+    }
+
+    .section{
+      background:#0d1426;
+      border:1px solid #293452;
+      border-radius:14px;
+      padding:20px;
+      margin-top:15px
+    }
+
+    .section h3{
+      margin:0 0 12px;
+      font-size:18px
+    }
+
+    .problem{
+      color:#dce3fa;
+      line-height:1.7
+    }
+
+    .root{
+      font-size:20px;
+      font-weight:800;
+      line-height:1.5;
+      margin-bottom:12px
+    }
+
+    .confidence{
+      display:inline-block;
+      padding:6px 12px;
+      border-radius:20px;
+      background:#263152;
+      color:#cbd5ff;
+      font-size:13px;
+      font-weight:700
+    }
+
+    .section p{
+      color:#c3cce4;
+      line-height:1.7;
+      margin:8px 0
+    }
+
+    ul,ol{
+      margin:8px 0 0;
+      padding-left:22px;
+      color:#c3cce4;
+      line-height:1.8
+    }
+
+    li{
+      margin-bottom:5px
+    }
+
+    .source{
+      color:#8fa2d8;
+      font-weight:700
+    }
+
+    .success{
+      color:#9fe3b1
     }
   </style>
 </head>
@@ -132,6 +193,8 @@
   </div>
 
 
+  <!-- QUESTION -->
+
   <div class="card">
 
     <label>Incident question</label>
@@ -144,18 +207,23 @@
   </div>
 
 
+  <!-- FILE UPLOAD -->
+
   <div class="card">
 
     <label>Incident evidence</label>
 
     <label class="upload" for="files">
-      📁 Click to upload logs, alerts, commits, deployments, or other text files
+
+      📁 Click to upload logs, alerts, commits, deployments,
+      or other text files
 
       <input
         id="files"
         type="file"
         multiple
       >
+
     </label>
 
     <div id="fileList">
@@ -171,6 +239,8 @@
   </div>
 
 
+  <!-- REPORT -->
+
   <div class="card" id="resultCard">
 
     <label>Investigation Report</label>
@@ -184,223 +254,389 @@
 
 <script>
 
-  const BACKEND_URL =
-    "https://ai-incident-investigator-1.onrender.com";
+const BACKEND_URL =
+  "https://ai-incident-investigator-1.onrender.com";
 
 
-  const filesInput =
-    document.getElementById("files");
+const filesInput =
+  document.getElementById("files");
 
-  const fileList =
-    document.getElementById("fileList");
+const fileList =
+  document.getElementById("fileList");
 
-  const button =
-    document.getElementById("investigate");
+const button =
+  document.getElementById("investigate");
 
-  const status =
-    document.getElementById("status");
+const status =
+  document.getElementById("status");
 
-  const report =
-    document.getElementById("report");
+const resultCard =
+  document.getElementById("resultCard");
 
-
-  /*
-   * Show selected files
-   */
-
-  filesInput.addEventListener("change", () => {
-
-    const files = [...filesInput.files];
-
-    fileList.textContent = files.length
-      ? files.map(f => `📄 ${f.name}`).join("   ")
-      : "No files selected.";
-
-  });
+const report =
+  document.getElementById("report");
 
 
-  /*
-   * Investigate incident
-   */
+/* ============================================================
+   FILE SELECTION
+   ============================================================ */
 
-  button.addEventListener("click", async () => {
+filesInput.addEventListener("change", () => {
 
-    const question =
-      document.getElementById("question").value.trim();
+  const files = [...filesInput.files];
 
-    const files =
-      [...filesInput.files];
+  fileList.innerHTML = files.length
+    ? files.map(
+        file => `📄 ${escapeHtml(file.name)}`
+      ).join("<br>")
+    : "No files selected.";
 
-
-    if (!question) {
-
-      alert("Enter an investigation question.");
-      return;
-
-    }
+});
 
 
-    if (!files.length) {
+/* ============================================================
+   ESCAPE HTML
+   ============================================================ */
 
-      alert("Upload at least one evidence file.");
-      return;
+function escapeHtml(value){
 
-    }
+  return String(value)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+
+}
 
 
-    const formData =
-      new FormData();
+/* ============================================================
+   LIST RENDERER
+   ============================================================ */
 
-    formData.append(
-      "question",
-      question
+function renderList(items){
+
+  if(!Array.isArray(items) || items.length === 0){
+
+    return "<p>No information provided.</p>";
+
+  }
+
+  return `
+    <ul>
+      ${items.map(
+        item => `<li>${escapeHtml(item)}</li>`
+      ).join("")}
+    </ul>
+  `;
+
+}
+
+
+/* ============================================================
+   REPORT RENDERER
+   ============================================================ */
+
+function renderReport(data){
+
+  const evidence =
+    data.supporting_evidence || [];
+
+  const alternatives =
+    data.alternative_explanations || [];
+
+  const immediate =
+    data.immediate_actions || [];
+
+  const verification =
+    data.verification || [];
+
+  const missing =
+    data.unknown_missing_evidence || [];
+
+
+  report.innerHTML = `
+
+    <!-- PROBLEM -->
+
+    <div class="section">
+
+      <h3>🔎 Problem</h3>
+
+      <p class="problem">
+        ${escapeHtml(data.problem || "Not specified.")}
+      </p>
+
+    </div>
+
+
+    <!-- ROOT CAUSE -->
+
+    <div class="section">
+
+      <h3>🎯 Most Likely Root Cause</h3>
+
+      <div class="root">
+        ${escapeHtml(data.root_cause || "UNRESOLVED")}
+      </div>
+
+      <span class="confidence">
+        Confidence: ${escapeHtml(data.confidence || "Unknown")}
+      </span>
+
+    </div>
+
+
+    <!-- WHY -->
+
+    <div class="section">
+
+      <h3>🧠 Why This Is the Root Cause</h3>
+
+      <p>
+        ${escapeHtml(
+          data.why_this_is_the_root_cause ||
+          "No explanation provided."
+        )}
+      </p>
+
+    </div>
+
+
+    <!-- EVIDENCE -->
+
+    <div class="section">
+
+      <h3>📌 Supporting Evidence</h3>
+
+      ${renderList(evidence)}
+
+    </div>
+
+
+    <!-- ALTERNATIVES -->
+
+    <div class="section">
+
+      <h3>⚠️ Alternative Explanations</h3>
+
+      ${renderList(alternatives)}
+
+    </div>
+
+
+    <!-- FIX -->
+
+    <div class="section">
+
+      <h3>🛠 Recommended Fix</h3>
+
+      <p>
+        ${escapeHtml(
+          data.recommended_fix ||
+          "No recommendation provided."
+        )}
+      </p>
+
+    </div>
+
+
+    <!-- IMMEDIATE ACTIONS -->
+
+    <div class="section">
+
+      <h3>🚨 Immediate Actions</h3>
+
+      ${renderList(immediate)}
+
+    </div>
+
+
+    <!-- VERIFICATION -->
+
+    <div class="section">
+
+      <h3>✅ Verification</h3>
+
+      ${renderList(verification)}
+
+    </div>
+
+
+    <!-- UNKNOWN -->
+
+    <div class="section">
+
+      <h3>❓ Missing Evidence / Unknowns</h3>
+
+      ${renderList(missing)}
+
+    </div>
+
+  `;
+
+  resultCard.style.display = "block";
+
+}
+
+
+/* ============================================================
+   INVESTIGATION
+   ============================================================ */
+
+button.addEventListener("click", async () => {
+
+  const question =
+    document.getElementById("question")
+      .value
+      .trim();
+
+  const files =
+    [...filesInput.files];
+
+
+  if(!question){
+
+    alert(
+      "Enter an investigation question."
     );
 
+    return;
 
-    files.forEach(file => {
-
-      formData.append(
-        "files",
-        file
-      );
-
-    });
+  }
 
 
-    button.disabled = true;
+  if(!files.length){
 
-    status.textContent =
-      "⏳ Investigating incident...";
+    alert(
+      "Upload at least one evidence file."
+    );
 
-    report.style.display =
-      "none";
+    return;
 
-    report.textContent =
-      "";
-
-
-    try {
-
-      const response =
-        await fetch(
-          `${BACKEND_URL}/investigate`,
-          {
-            method: "POST",
-            body: formData
-          }
-        );
+  }
 
 
-      /*
-       * Read the backend response
-       */
+  const formData =
+    new FormData();
 
-      const data =
-        await response.json();
-
-
-      /*
-       * Handle HTTP errors
-       */
-
-      if (!response.ok) {
-
-        throw new Error(
-          data.detail ||
-          data.error ||
-          "Investigation failed."
-        );
-
-      }
+  formData.append(
+    "question",
+    question
+  );
 
 
-      /*
-       * Handle backend application errors.
-       *
-       * The backend can return HTTP 200 with
-       * an "error" field, so check that too.
-       */
+  files.forEach(file => {
 
-      if (data.error) {
-
-        throw new Error(
-          data.details ||
-          data.error
-        );
-
-      }
-
-
-      /*
-       * Make sure a report actually exists
-       */
-
-      if (!data.report) {
-
-        throw new Error(
-          "Backend returned no investigation report."
-        );
-
-      }
-
-
-      /*
-       * Display report
-       */
-
-      report.textContent =
-        JSON.stringify(
-          data.report,
-          null,
-          2
-        );
-
-      report.style.display =
-        "block";
-
-
-      /*
-       * Safely count processed files
-       */
-
-      const processedFiles =
-        Array.isArray(data.files_processed)
-          ? data.files_processed.length
-          : files.length;
-
-
-      status.textContent =
-        `✅ Investigation complete. Processed ${processedFiles} file(s).`;
-
-    }
-
-
-    catch (err) {
-
-      status.innerHTML =
-        `<span class="error">❌ ${err.message}</span>`;
-
-      /*
-       * Also show the error in the report area
-       * so debugging is easier.
-       */
-
-      report.textContent =
-        `Investigation failed:\n\n${err.message}`;
-
-      report.style.display =
-        "block";
-
-    }
-
-
-    finally {
-
-      button.disabled = false;
-
-    }
+    formData.append(
+      "files",
+      file
+    );
 
   });
+
+
+  button.disabled = true;
+
+  button.textContent =
+    "⏳ Investigating...";
+
+  status.textContent =
+    "AI is analyzing the uploaded evidence...";
+
+  resultCard.style.display =
+    "none";
+
+
+  try{
+
+    const response =
+      await fetch(
+        `${BACKEND_URL}/investigate`,
+        {
+          method:"POST",
+          body:formData
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if(!response.ok){
+
+      throw new Error(
+        data.detail ||
+        data.error ||
+        "Investigation failed."
+      );
+
+    }
+
+
+    if(data.error){
+
+      throw new Error(
+        data.details ||
+        data.error
+      );
+
+    }
+
+
+    if(!data.report){
+
+      throw new Error(
+        "Backend returned no investigation report."
+      );
+
+    }
+
+
+    renderReport(data.report);
+
+
+    const processedFiles =
+      Array.isArray(data.files_processed)
+        ? data.files_processed.length
+        : files.length;
+
+
+    status.innerHTML =
+      `<span class="success">
+        ✅ Investigation complete. Processed
+        ${processedFiles} file(s).
+      </span>`;
+
+
+  }catch(err){
+
+    status.innerHTML =
+      `<span class="error">
+        ❌ ${escapeHtml(err.message)}
+      </span>`;
+
+    resultCard.style.display =
+      "block";
+
+    report.innerHTML = `
+      <div class="section">
+        <h3>❌ Investigation Failed</h3>
+        <p>${escapeHtml(err.message)}</p>
+      </div>
+    `;
+
+  }finally{
+
+    button.disabled = false;
+
+    button.textContent =
+      "🔍 Investigate Incident";
+
+  }
+
+});
 
 </script>
 
