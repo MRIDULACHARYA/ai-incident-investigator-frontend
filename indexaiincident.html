@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Incident Investigator</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:#0b1020;color:#eef2ff;min-height:100vh}
+    .wrap{max-width:900px;margin:auto;padding:55px 22px}
+    h1{font-size:42px;margin:0 0 10px}
+    .sub{color:#aab3cf;margin-bottom:35px;font-size:17px}
+    .card{background:#151c31;border:1px solid #293452;border-radius:18px;padding:25px;margin-bottom:20px}
+    label{display:block;font-weight:700;margin-bottom:10px}
+    textarea{width:100%;min-height:110px;background:#0d1426;color:white;border:1px solid #34405f;border-radius:12px;padding:14px;font-size:15px;resize:vertical}
+    .upload{border:2px dashed #405078;border-radius:14px;padding:28px;text-align:center;cursor:pointer}
+    .upload:hover{border-color:#7185bd}
+    input[type=file]{display:none}
+    #fileList{margin-top:15px;color:#b9c3df;font-size:14px}
+    button{width:100%;padding:15px;border:0;border-radius:12px;background:#6d7cff;color:white;font-size:16px;font-weight:800;cursor:pointer;margin-top:20px}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    #status{margin-top:18px;color:#aeb9d8;text-align:center}
+    #report{display:none;white-space:pre-wrap;line-height:1.65;background:#0d1426;border-radius:12px;padding:20px;overflow:auto}
+    .error{color:#ff8f8f}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AI Incident Investigator</h1>
+  <div class="sub">Upload your incident evidence and let the AI investigate what happened.</div>
+
+  <div class="card">
+    <label>Incident question</label>
+    <textarea id="question" placeholder="Example: What caused the payment failures and what evidence supports the root cause?"></textarea>
+  </div>
+
+  <div class="card">
+    <label>Incident evidence</label>
+    <label class="upload" for="files">
+      📁 Click to upload logs, alerts, commits, deployments, or other text files
+      <input id="files" type="file" multiple>
+    </label>
+    <div id="fileList">No files selected.</div>
+    <button id="investigate">🔍 Investigate Incident</button>
+    <div id="status"></div>
+  </div>
+
+  <div class="card" id="resultCard">
+    <label>Investigation Report</label>
+    <div id="report"></div>
+  </div>
+</div>
+
+<script>
+  // PASTE YOUR RENDER BACKEND URL HERE.
+  // Example: https://ai-incident-investigator-xxxx.onrender.com
+  const BACKEND_URL = "PASTE_RENDER_URL_HERE";
+
+  const filesInput = document.getElementById("files");
+  const fileList = document.getElementById("fileList");
+  const button = document.getElementById("investigate");
+  const status = document.getElementById("status");
+  const report = document.getElementById("report");
+
+  filesInput.addEventListener("change", () => {
+    const files = [...filesInput.files];
+    fileList.textContent = files.length
+      ? files.map(f => `📄 ${f.name}`).join("   ")
+      : "No files selected.";
+  });
+
+  button.addEventListener("click", async () => {
+    const question = document.getElementById("question").value.trim();
+    const files = [...filesInput.files];
+
+    if (!question) return alert("Enter an investigation question.");
+    if (!files.length) return alert("Upload at least one evidence file.");
+    if (BACKEND_URL.includes("PASTE_RENDER_URL_HERE")) {
+      return alert("First paste your Render backend URL into BACKEND_URL in index.html.");
+    }
+
+    const formData = new FormData();
+    formData.append("question", question);
+    files.forEach(file => formData.append("files", file));
+
+    button.disabled = true;
+    status.textContent = "⏳ Investigating incident...";
+    report.style.display = "none";
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/investigate`, {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || "Investigation failed.");
+      }
+
+      report.textContent = JSON.stringify(data.report, null, 2);
+      report.style.display = "block";
+      status.textContent = `✅ Investigation complete. Processed ${data.files_processed.length} file(s).`;
+    } catch (err) {
+      status.innerHTML = `<span class="error">❌ ${err.message}</span>`;
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
